@@ -570,7 +570,8 @@
   }
   function renderWeather() {
     const W = wxSeries(); if (!W) { $("wxCard").hidden = true; return; }
-    const i = S.sel, [, m] = ym(i), base = (k) => d3.range(BASE_Y0, BASE_Y1 + 1).map((y) => W[k][idxOf(y, m)]).filter(isFinite);
+    const i0 = S.sel; let i = i0; while (i > 0 && !isFinite(W.precip_mm_day[i])) i--;
+    const [, m] = ym(i), base = (k) => d3.range(BASE_Y0, BASE_Y1 + 1).map((y) => W[k][idxOf(y, m)]).filter(isFinite);
     const card = (k, unit, lbl, pct) => { const v = W[k][i], bs = base(k), mu = d3.mean(bs); if (!isFinite(v) || !isFinite(mu)) return `<div class="metric"><b>–</b><span>${lbl}</span></div>`;
       const d = pct ? (mu > 0 ? (v / mu - 1) * 100 : 0) : v - mu, sgn = d > 0 ? "+" : "";
       const bad = (k === "precip_mm_day" || k === "rh_pct") ? d < (pct ? -30 : -5) : d > (k === "tmax_c" ? 1.5 : .5);
@@ -579,7 +580,7 @@
     const ante = (j) => d3.mean([j - 1, j - 2, j - 3].filter((q) => q >= 0), (q) => W.precip_mm_day[q]);
     const anteNow = ante(i), anteBase = d3.mean(d3.range(BASE_Y0, BASE_Y1 + 1).map((y) => ante(idxOf(y, m))).filter(isFinite));
     $("wxGrid").innerHTML = card("precip_mm_day", "mm/d", "precipitation", true) + card("tmax_c", "°C", "max temperature", false) + card("rh_pct", "%", "humidity", false) +
-      card("wind_ms", "m/s", "wind", false) + (isFinite(W.precip_mm_day[i]) ? "" : `<p class="muted" style="grid-column:1/-1;margin:0;font-size:12px">${{ en: "NASA POWER monthly weather (MERRA-2) for this month is not published yet (about 1–2 months of lag). Pick an earlier month in the calendar.", ru: "Месячные данные NASA POWER (MERRA-2) за этот месяц ещё не опубликованы (задержка ~1–2 месяца). Выберите более ранний месяц в календаре.", kk: "Бұл айдың NASA POWER (MERRA-2) айлық деректері әлі жарияланбаған (~1–2 ай кешігу). Күнтізбеден ертерек айды таңдаңыз." }[S.lang]}</p>`) + `<div class="metric"><b class="mono ${anteNow < .7 * anteBase ? "meh" : ""}">${fmt((anteNow / anteBase - 1) * 100, 0)}%</b><span>rain in the 3 months before, vs normal</span></div>`;
+      card("wind_ms", "m/s", "wind", false) + (i === i0 ? "" : `<p class="muted" style="grid-column:1/-1;margin:0;font-size:12px">${{ en: `NASA POWER monthly weather (MERRA-2) for ${label(i0)} is not published yet (1–2 months of lag), so this card shows ${label(i)}, the latest month available.`, ru: `Месячные данные NASA POWER (MERRA-2) за ${label(i0)} ещё не опубликованы (задержка 1–2 месяца), поэтому показан ${label(i)} — последний доступный месяц.`, kk: `${label(i0)} үшін NASA POWER (MERRA-2) деректері әлі жарияланбаған, сондықтан соңғы қолжетімді ай көрсетілген: ${label(i)}.` }[S.lang]}</p>`) + `<div class="metric"><b class="mono ${anteNow < .7 * anteBase ? "meh" : ""}">${fmt((anteNow / anteBase - 1) * 100, 0)}%</b><span>rain in the 3 months before, vs normal</span></div>`;
     // which weather tracks fire in this area? fire-season months Apr-Oct, all years
     const idx = d3.range(D.n).filter((j) => { const [, mm] = ym(j); return mm >= 3 && mm <= 9; });
     const fireP = idx.map((j) => pctRank(D.agg.H[j], ym(j)[1]));
@@ -722,7 +723,7 @@
     lg.onAdd = () => { legendEl = L.DomUtil.create("div", "map-legend"); updateLegend(); return legendEl; };
     lg.addTo(map);
     flareLayer = L.layerGroup().addTo(map);
-    D.flares.slice(0, 300).forEach(([la, lo, n]) => L.circleMarker([la, lo], { radius: 2 + Math.min(4, Math.log10(n + 1)), color: "#b78cff", weight: 1.2, fillColor: "#b78cff", fillOpacity: .25 })
+    D.flares.slice(0, 300).forEach(([la, lo, n]) => L.circleMarker([la, lo], { radius: 1.5 + Math.min(2.5, Math.log10(n + 1) * .7), color: "#b78cff", opacity: .55, weight: .8, fillColor: "#b78cff", fillOpacity: .15 })
       .bindTooltip(`Persistent industrial source<br>${fmt(n, 0)} detections masked`).addTo(flareLayer));
   }
   function setBasemap() {
@@ -775,6 +776,7 @@
     S.sel = i; renderNow(); renderYTD(); renderRegions(); renderML(); renderWeather(); renderCalendar(); renderRecords(); renderEvents(); renderMapCells(); renderDaily(); writeHash();
     if (focus) { const el = document.querySelector("#calendar rect.c.sel"); if (el) el.focus(); }
   }
+  function goCalendar() { const c = $("calendar"); if (c) c.closest(".card").scrollIntoView({ behavior: "smooth", block: "start" }); }
   function renderAll() { renderNow(); renderYTD(); renderRegions(); renderML(); renderLC(); renderTrends(); renderWeather(); renderDaily(); renderCalendar(); renderRaw(); renderRecords(); renderSeason(); renderEvents(); renderHood(); renderDrift(); renderReported(); renderMapCells(); }
 
   function writeHash() {
@@ -920,6 +922,7 @@
     $("modeSeg").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; S.mode = b.dataset.mode; document.body.dataset.mode = S.mode; $("modeSeg").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b)); renderHood(); renderDrift(); writeHash(); });
     $("langSeg").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; S.lang = b.dataset.lang; applyLang(); $("aboutBody").innerHTML = ABOUT[S.lang]; renderAll(); renderFindings(); writeHash(); });
     $("chkFlares").addEventListener("change", (e) => (e.target.checked ? flareLayer.addTo(map) : map.removeLayer(flareLayer)));
+    if ($("btnToCal")) $("btnToCal").addEventListener("click", goCalendar);
     $("btnTheme").addEventListener("click", () => { const r = document.documentElement; const cur = r.dataset.theme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"); r.dataset.theme = cur === "light" ? "dark" : "light"; try { localStorage.setItem("cc-theme", r.dataset.theme); } catch (_) {} setBasemap(); renderAll(); });
     $("btnValidation").addEventListener("click", () => $("dlgValidation").showModal());
     let playTimer = null, stampCtl = null;
