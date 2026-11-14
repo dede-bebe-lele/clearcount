@@ -1,0 +1,86 @@
+# Rebuilds ClearCount from fresh NASA data and publishes it to GitHub Pages.
+# Every night: new FIRMS hotspots. Mondays: + weather, passes, trends, ML. 1st of month: + Earthdata.
+# Secrets (Settings -> Secrets and variables -> Actions):
+#   FIRMS_MAP_KEY        free key from https://firms.modaps.eosdis.nasa.gov/api/map_key/
+#   EARTHDATA_USERNAME   NASA Earthdata Login (optional; monthly products only)
+#   EARTHDATA_PASSWORD
+name: Update ClearCount data
+
+on:
+  schedule:
+    - cron: "20 2 * * *"        # every day 02:20 UTC (08:20 in Kazakhstan)
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "auto | daily | weekly | monthly | full"
+        default: "auto"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: clearcount-update
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-earthdata.txt || echo "Earthdata libraries unavailable; monthly Earthdata steps will be skipped"
+
+      # keep downloaded NASA data and the previous results between runs
+      - name: Restore data cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            data
+            web/data
+          key: clearcount-data-${{ github.run_id }}
+          restore-keys: clearcount-data-
+
+      - name: Credentials (stay on the runner, never printed)
+        env:
+          FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
+          EARTHDATA_USERNAME: ${{ secrets.EARTHDATA_USERNAME }}
+          EARTHDATA_PASSWORD: ${{ secrets.EARTHDATA_PASSWORD }}
+        run: |
+          if [ -n "$FIRMS_MAP_KEY" ]; then printf 'FIRMS_MAP_KEY=%s\n' "$FIRMS_MAP_KEY" > .env; fi
+          if [ -n "$EARTHDATA_USERNAME" ]; then
+            printf 'machine urs.earthdata.nasa.gov login %s password %s\n' "$EARTHDATA_USERNAME" "$EARTHDATA_PASSWORD" > ~/.netrc
+            chmod 600 ~/.netrc
+          fi
+
+      - name: Update data
+        run: python pipeline/update.py --mode "${{ github.event.inputs.mode || 'auto' }}"
+
+      - name: Remove credentials
+        if: always()
+        run: rm -f .env ~/.netrc
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
