@@ -1,0 +1,3 @@
+earthaccess==0.11.0
+h5py
+pyhdf

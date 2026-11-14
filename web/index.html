@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClearCount — Fire Calendar</title>
+<meta name="description" content="Harmonized MODIS + VIIRS burning-activity calendar from NASA FIRMS hotspots, 2000 to today, with a satellite-blindness layer.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%235ab0ff' stroke-width='2'/%3E%3Cpath d='M16 7c3 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-3-1-5 1-8z' fill='%23ff7a1a'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css">
+<link rel="stylesheet" href="styles.css?v=23">
+</head>
+<body data-mode="responder">
+<a class="skip" href="#nowCard">Skip to results</a>
+<div class="loading" id="loading" role="status"><div style="text-align:center"><div class="orb" style="margin:0 auto 14px"></div><span data-i18n="loading">Loading NASA data…</span></div></div>
+
+<header class="topbar">
+  <a class="brand" href="#" aria-label="ClearCount home">
+    <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="#5ab0ff" stroke-width="1.6" stroke-dasharray="3 2.2"/><path d="M16 7c3 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-3-1-5 1-8z" fill="#ff7a1a"/><circle cx="27.5" cy="10" r="2.2" fill="#e8edf6"/></svg>
+    <div><b>ClearCount</b><small data-i18n="tagline">Harmonized MODIS + VIIRS burning calendar</small></div>
+  </a>
+  <div class="spacer"></div>
+  <div class="seg" role="group" aria-label="User mode" id="modeSeg">
+    <button data-mode="responder" aria-pressed="true" data-i18n="mode_responder">Responder</button>
+    <button data-mode="scientist" aria-pressed="false" data-i18n="mode_scientist">Scientist</button>
+    <button data-mode="land" aria-pressed="false" data-i18n="mode_land">Land manager</button>
+  </div>
+  <div class="seg" role="group" aria-label="Language" id="langSeg">
+    <button data-lang="en" aria-pressed="true">EN</button>
+    <button data-lang="ru" aria-pressed="false">RU</button>
+    <button data-lang="kk" aria-pressed="false">KZ</button>
+  </div>
+  <button class="btn" id="btnStory" title="Guided tour of the main findings">▶ <span data-i18n="story">Story</span></button>
+  <button class="icon-btn" id="btnValidation" data-i18n="validation">Validation</button>
+  <button class="icon-btn" id="btnAbout" data-i18n="about">About &amp; sources</button>
+  <button class="icon-btn" id="btnTheme" aria-label="Toggle light/dark theme">◐</button>
+</header>
+
+<section class="hero">
+  <div>
+    <h1 data-i18n-html="hero_title">Zero hotspots <em>isn't</em> zero fire.</h1>
+    <p data-i18n="hero_text"></p>
+    <div class="hero-cta"><button class="btn" id="btnStory2">▶ <span data-i18n="story_cta">Take the 2-minute tour</span></button>
+      <span class="muted mono" id="heroMeta"></span></div>
+  </div>
+  <div class="hero-stats">
+    <div class="stat"><b id="stYears">–</b><span data-i18n="stat_record">years of harmonized record</span></div>
+    <div class="stat"><b id="stDet">–</b><span data-i18n="stat_det">NASA hotspots processed</span></div>
+    <div class="stat"><b id="stFlare">–</b><span data-i18n="stat_flare">flagged as flares / industry</span></div>
+  </div>
+</section>
+<section class="findings" id="findings" aria-label="Key findings"></section>
+
+<main class="layout">
+  <!-- ======= left: map & area ======= -->
+  <div class="col-map">
+    <div class="seg map-mode" role="group" aria-label="Map layer" id="mapMode"><button data-mm="month" aria-pressed="true" data-i18n="mm_month">Month</button><button data-mm="trend" aria-pressed="false" data-i18n="mm_trend">Trend</button><button data-mm="raw" aria-pressed="false" data-i18n="mm_raw">Raw-data trend</button><button data-mm="regime" aria-pressed="false" data-i18n="mm_regime">Fire regimes</button><button data-mm="regions" aria-pressed="false" data-i18n="mm_regions">Regions</button><button id="btnPlay" aria-pressed="false" title="Play 25 years month by month">▶ <span data-i18n="play">Time-lapse</span></button></div>
+    <div id="map" role="application" aria-label="Map: draw an area of interest"></div>
+    <div class="card"><div class="card-b">
+      <div class="tag" data-i18n="area">Area of interest</div>
+      <p class="muted" style="margin:4px 0 10px;font-size:12px" data-i18n="draw_hint"></p>
+      <div class="aoi-tools">
+        <select id="preset" aria-label="Area preset"></select>
+        <button class="btn ghost" id="btnFit" title="Zoom to area">⤢</button>
+      </div>
+      <form class="coord-row" id="coordForm">
+        <input id="la0" inputmode="decimal" aria-label="lat min" placeholder="lat min">
+        <input id="la1" inputmode="decimal" aria-label="lat max" placeholder="lat max">
+        <input id="lo0" inputmode="decimal" aria-label="lon min" placeholder="lon min">
+        <input id="lo1" inputmode="decimal" aria-label="lon max" placeholder="lon max">
+        <button class="btn" type="submit" data-i18n="apply">Apply</button>
+      </form>
+      <div class="range-row">
+        <span class="tag" data-i18n="period">Period</span>
+        <span data-i18n="from">from</span><select id="y0" aria-label="start year"></select>
+        <span data-i18n="to">to</span><select id="y1" aria-label="end year"></select>
+        <span class="spacer"></span>
+        <label class="pill"><input type="checkbox" id="chkFlares" checked> <span data-i18n="flares_layer">Persistent industrial sources</span></label>
+        <button class="btn ghost" id="btnShare" type="button" title="Copy a link to this view">🔗 <span data-i18n="share">Copy link</span></button>
+      </div>
+      <div class="range-row" id="aoiSummary" style="font-size:12px;color:var(--muted)"></div>
+    </div></div>
+    <div class="banner" id="snppBanner">🛰️ <span data-i18n="snpp_note"></span></div>
+  </div>
+
+  <!-- ======= right: analytics ======= -->
+  <div class="col-main">
+    <section class="card" id="nowCard" aria-live="polite">
+      <div class="card-h"><h2 data-i18n="now_title">Selected month vs history</h2><span class="hint" data-i18n="now_hint"></span></div>
+      <div class="card-b">
+        <div class="now">
+          <div><div class="now-big mono" id="nowX">–</div><div class="muted" id="nowLabel"></div></div>
+          <div class="now-meta">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b id="nowMonth" style="font-family:var(--font-display);font-size:18px">–</b><span class="pill" id="nowState">–</span><span class="pill" id="nowConf">–</span></div>
+            <div class="gauge" aria-hidden="true"><i id="nowGauge" style="left:50%"></i></div>
+            <div class="gauge-l"><span>0</span><span>p25</span><span>p50</span><span>p75</span><span>p100</span></div>
+            <div class="muted mono" id="nowDetail" style="font-size:12px"></div>
+            <div id="nowOutlook" style="font-size:12.5px"></div>
+          </div>
+        </div>
+        <div class="banner alert" id="alertBanner" hidden style="margin-top:12px"></div>
+      <p class="src">Source: NASA FIRMS MODIS C6.1 + VIIRS 375 m (standard + near-real-time), harmonized by ClearCount · baseline = median of the same month 2003–2021 · cloud: NASA POWER (CERES SYN1deg) · ± = 95% calibration interval</p></div>
+    </section>
+
+    <section class="card chart" id="ytdCard">
+      <div class="card-h"><h2 data-i18n="ytd_title">Season to date</h2><span class="hint" data-i18n="ytd_hint">cumulative harmonized hotspots from 1 January, every year since 2001</span></div>
+      <div class="card-b"><p id="ytdStatus" style="margin:0 0 8px"></p><div id="ytdChart"></div>
+        <details style="margin-top:8px"><summary class="muted" data-i18n="ytd_table">Same-date table (vs last year, vs 2003–2021 mean)</summary><div id="ytdTable" style="overflow:auto;max-height:340px"></div></details>
+        <p class="src">Source: harmonized NASA FIRMS record · cumulative from 1 January to the end of the selected month · grey band = 2003–2021 min–max, dashed = median · partial current month marked *</p></div>
+    </section>
+
+    <section class="card" id="mlCard">
+      <div class="card-h"><h2 data-i18n="ml_title">Early warning (ML)</h2><span class="hint" data-i18n="ml_hint"></span></div>
+      <div class="card-b"><div id="mlBody"></div><p class="src">Source: ClearCount harmonized record + NASA POWER (MERRA-2) · gradient-boosted trees (scikit-learn) · each year predicted by a model that never saw it</p></div>
+    </section>
+
+    <section class="card" id="wxCard">
+      <div class="card-h"><h2 data-i18n="wx_title">Fire weather</h2><span class="hint" data-i18n="wx_hint"></span></div>
+      <div class="card-b"><div class="metric-grid" id="wxGrid"></div><p id="wxText" class="muted" style="font-size:12.5px;margin:8px 0 0"></p><p class="src">Source: NASA POWER monthly (MERRA-2): precipitation, max temperature, humidity, wind · baseline 2003–2021</p></div>
+    </section>
+
+    <section class="card chart" id="dayCard">
+      <div class="card-h"><h2 data-i18n="day_title">Day by day</h2><span class="hint" data-i18n="day_hint"></span></div>
+      <div class="card-b"><div id="dayChart"></div><div id="dayText" class="muted" style="font-size:12px;margin-top:6px"></div><p class="src">Source: NASA FIRMS hotspots · NASA POWER daily cloud (CERES SYN1deg) · FIRMS swath outlines via NASA CMR · NASA GIBS true colour · per-pass check: MOD14/MYD14 Level-2 + MOD03/MYD03</p></div>
+    </section>
+
+    <section class="card cal">
+      <div class="card-h"><h2 data-i18n="cal_title">Burning calendar</h2><span class="hint" data-i18n="cal_hint"></span>
+        <span class="spacer"></span>
+        <div class="seg" role="group" aria-label="Calendar view" id="viewSeg">
+          <button data-view="pct" aria-pressed="true" data-i18n="view_pct">Rank</button>
+          <button data-view="abs" aria-pressed="false" data-i18n="view_abs">Hotspots</button>
+          <button data-view="anom" aria-pressed="false" data-i18n="view_anom">Anomaly %</button>
+        </div>
+      </div>
+      <div class="card-b">
+        <div class="cal-wrap" id="calendar"></div>
+        <div class="legend" id="calLegend"></div>
+        <details style="margin-top:8px"><summary class="muted" data-i18n="table_view">Table view</summary><div id="calTable" style="overflow:auto;max-height:320px"></div></details>
+      <p class="src">Source: NASA FIRMS (MODIS + VIIRS), harmonized · rank vs same month 2003–2021 · hatching: ≥60% of days with ≥70% cloud (NASA POWER)</p></div>
+    </section>
+
+    <section class="card chart">
+      <div class="card-h"><h2 data-i18n="raw_title">Raw sum vs ClearCount</h2><span class="hint" data-i18n="raw_hint"></span></div>
+      <div class="card-b"><div id="rawChart"></div><p class="src">Source: NASA FIRMS standard + NRT · shaded band = 95% bootstrap interval of the calibration ratios</p></div>
+    </section>
+
+    <div class="grid2">
+      <section class="card">
+        <div class="card-h"><h2 data-i18n="records_title">Records</h2></div>
+        <div class="card-b" id="records"></div>
+      </section>
+      <section class="card chart">
+        <div class="card-h"><h2 data-i18n="season_title">Fire season clock</h2></div>
+        <div class="card-b"><p class="muted" style="margin:0 0 6px;font-size:12px" data-i18n="season_hint"></p><div id="seasonChart"></div><div id="seasonText" class="muted" style="font-size:12px"></div></div>
+      </section>
+    </div>
+
+    <section class="card">
+      <div class="card-h"><h2 data-i18n="events_title">Fire events</h2><span class="hint" data-i18n="events_hint"></span></div>
+      <div class="card-b" id="events"></div><div class="card-b" style="padding-top:0"><p class="src">Source: harmonized NASA FIRMS hotspots, linked when ≤2 km and ≤1 day apart · size in MODIS-Aqua-equivalent hotspots</p></div>
+    </section>
+
+    <section class="card" id="regionsCard">
+      <div class="card-h"><h2 data-i18n="rg_title">Regions: who is above normal?</h2><span class="hint" data-i18n="rg_hint">selected month, each region against its own 2003–2021 history; click a region to select it</span></div>
+      <div class="card-b"><div id="regionsBody" style="overflow:auto"></div>
+      <p class="src" id="regionsSrc"></p></div>
+    </section>
+
+    <section class="card" id="trendCard">
+      <div class="card-h"><h2 data-i18n="tr_title">Trends &amp; fire regimes</h2><span class="hint" data-i18n="tr_hint">2003–2025, only meaningful on a harmonized record</span></div>
+      <div class="card-b"><div id="trendBody"></div><div id="regimeBody" style="margin-top:12px"></div>
+      <p class="src">Source: harmonized NASA FIRMS record · Mann–Kendall test + Sen's slope per 1° cell, Benjamini–Hochberg false-discovery control (q = 0.10) · regimes: k-means clustering (scikit-learn) on seasonal profile, activity, variability, cropland share (MCD12Q1) and night share</p></div>
+    </section>
+
+    <section class="card chart" id="lcCard">
+      <div class="card-h"><h2 data-i18n="lc_title">What burns</h2><span class="hint" data-i18n="lc_hint">harmonized hotspots by land cover (NASA MCD12Q1)</span></div>
+      <div class="card-b"><div class="grid2"><div id="lcYear"></div><div id="lcMonth"></div></div><p id="lcText" class="muted" style="font-size:12.5px;margin:6px 0 0"></p><p class="src">Source: NASA MCD12Q1 v061 (2020, IGBP), 500 m · harmonized hotspots</p></div>
+    </section>
+
+    <section class="card mode-scientist-only chart">
+      <div class="card-h"><h2 data-i18n="hood_title">Under the hood: sensors</h2><span class="hint" data-i18n="hood_hint"></span></div>
+      <div class="card-b"><div id="hoodChart"></div><p class="src">Source: NASA FIRMS standard processing (+ NRT for 2026), per satellite, Kazakhstan</p></div>
+    </section>
+
+    <section class="card mode-scientist-only chart">
+      <div class="card-h"><h2 data-i18n="drift_title">Orbit-drift detector</h2><span class="hint" data-i18n="drift_hint">did satellite drift, not fire, change MODIS counts?</span></div>
+      <div class="card-b"><div id="driftChart"></div><p id="driftText" class="muted" style="font-size:12.5px;margin:6px 0 0"></p><p class="src">Source: NASA FIRMS daytime landscape-fire detections, relative to VIIRS S-NPP (maintained orbit) · 95% bootstrap over days</p></div>
+    </section>
+
+    <section class="card" id="reportedCard">
+      <div class="card-h"><h2 data-i18n="reported_title">Detected vs reported</h2><span class="hint" data-i18n="reported_hint"></span></div>
+      <div class="card-b" id="reported"></div><div class="card-b" style="padding-top:0"><p class="src">Source: Ministry of Emergency Situations and press reports (links), compared with ClearCount fire events</p></div>
+    </section>
+
+    <section class="card export-card">
+      <div class="card-h"><h2 data-i18n="export_title">Download</h2></div>
+      <div class="card-b export-grid">
+        <button class="btn ghost" id="expCal"><span data-i18n="exp_cal">Calendar CSV</span><small data-i18n="exp_cal_s"></small></button>
+        <button class="btn ghost" id="expPts"><span data-i18n="exp_pts">Hotspots CSV</span><small data-i18n="exp_pts_s"></small></button>
+        <button class="btn ghost" id="expPng"><span data-i18n="exp_png">Calendar PNG</span><small data-i18n="exp_png_s"></small></button>
+        <button class="btn ghost" id="expPdf"><span data-i18n="exp_pdf">PDF report</span><small data-i18n="exp_pdf_s"></small></button>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  NASA FIRMS (MODIS C6.1, VIIRS 375 m S-NPP / NOAA-20, standard processing) · NASA POWER (CERES SYN1deg cloud amount) ·
+  ClearCount is an independent student project; it is not endorsed by NASA. <span id="dataUntil"></span>
+</footer>
+
+<div class="tooltip" id="tip" role="tooltip"></div>
+
+<dialog id="dlgValidation"><div class="dlg-h"><h2 data-i18n="validation">Validation</h2><span class="spacer"></span><button class="icon-btn" data-close>✕</button></div><div class="dlg-b" id="validationBody"></div></dialog>
+<dialog id="dlgAbout"><div class="dlg-h"><h2 data-i18n="about">About &amp; sources</h2><span class="spacer"></span><button class="icon-btn" data-close>✕</button></div><div class="dlg-b" id="aboutBody"></div></dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="i18n.js?v=23"></script>
+<script src="content.js?v=23"></script>
+<script src="content_about.js?v=23"></script>
+<script src="story.js?v=23"></script>
+<script src="app.js?v=23"></script>
+</body>
+</html>
