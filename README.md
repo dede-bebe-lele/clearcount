@@ -3,6 +3,8 @@
 **A harmonized MODIS + VIIRS burning-activity calendar, from 2000 to today, that also tells you when the satellites were blind.**
 Built for the NASA Space Apps challenge *"Harmonization of MODIS and VIIRS Hot Spots"*. Validated on Kazakhstan.
 
+**Live app:** https://dede-bebe-lele.github.io/clearcount/ (rebuilt every night from NASA data). Numbers below are from the 14 Nov 2026 build; the live site always shows the latest.
+
 ## The problem
 
 - **Sensors see fires differently.** VIIRS (375 m) detects about **5× more daytime and 20× more night-time hotspots** than MODIS over Kazakhstan (our measurement).
@@ -23,7 +25,7 @@ Built for the NASA Space Apps challenge *"Harmonization of MODIS and VIIRS Hot S
 2. **Calibrates on the clean overlap** (2012–2021, both satellites crossing at ~13:30, before Aqua's orbit drift).
    - Uses hierarchical, shrunken ratios: country → 3° block → season, each split by day/night.
 3. **Masks persistent industrial sources** (gas flares, plants): FIRMS type 2, plus our own multi-year persistence rule.
-   - This removes **15.8%** of all detections in Kazakhstan, including Tengiz, Karachaganak and Zhanazhol.
+   - This removes **17%** of all detections in Kazakhstan, including Tengiz, Karachaganak and Zhanazhol.
    - Many of these sites carry the FIRMS `type 0` (vegetation) flag.
 4. **Burning calendar** (months × years, 0.25° grid), for any drawn polygon, rectangle or lat/lon box:
    - percentile rank against the same month in 2003–2021;
@@ -41,8 +43,8 @@ Built for the NASA Space Apps challenge *"Harmonization of MODIS and VIIRS Hot S
 
 ## New findings (Kazakhstan)
 - **Orbit-drift detector**, relative to VIIRS S-NPP (maintained orbit), with a 2012–2019 baseline and 95% bootstrap CIs:
-  - Aqua's median local detection time moved from 12:59 to **14:02**, and its daytime fire counts rose **+17.5%** by 2025;
-  - Terra moved from 11:12 to **10:10**, and its counts fell **−33.9%**;
+  - Aqua's median local detection time moved from 12:59 to **14:02**, and its daytime fire counts rose **+17.6%** by 2025;
+  - Terra moved from 11:12 to **10:10**, and its counts fell **−33.8%**;
   - the NOAA-20 placebo stays within ±5%;
   - the opposite signs match the afternoon fire peak.
 - **Why VIIRS sees 5.3× more** (from 333,184 FIRMS swath outlines / CMR granules): 1.29× more satellite looks (wider swath) × 4.09× more detections per look.
@@ -61,8 +63,8 @@ Same model, same weather, same target; only the fire-history features differ. Le
 
 | Features | AUC | PR-AUC | Top-10% hit rate | Brier skill vs climatology |
 |---|---|---|---|---|
-| Raw FIRMS history | 0.678 | 0.317 | 36% | 5.3% |
-| **ClearCount history** | **0.724** | **0.401** | **48%** | **10.6%** |
+| Raw FIRMS history | 0.678 | 0.316 | 36% | 5.2% |
+| **ClearCount history** | **0.723** | **0.402** | **48%** | **10.6%** |
 
 ## Independent validation against NASA burned area (MCD64A1, Apr–Oct)
 Hotspots per 100 km² of burned area:
@@ -122,7 +124,7 @@ Kazakhstan-trained ratios were applied unchanged to Mongolia's S-NPP hotspots an
 | Mongolia's own in-country calibration | 2018–21 | 0.69 | — |
 
 ## What burns (MCD12Q1 land cover)
-- 83% of harmonized hotspots fall in steppe, shrub and grass; 16% in cropland.
+- 84% of harmonized hotspots fall in steppe, shrub and grass; 16% in cropland.
 - In northern Kazakhstan, cropland fires peak in Apr–May and Sep–Oct, the stubble-burning seasons.
 
 ## Early warning (machine learning)
@@ -146,9 +148,9 @@ Kazakhstan-trained ratios were applied unchanged to Mongolia's S-NPP hotspots an
 | Total bias vs observed Aqua (test) | **−1.8 %** |
 | Cohen's κ, "month above p90" (test) | **0.68** (naive: 0.64) |
 | Step at Jan 2012 (median log-ratio to Aqua) | raw sum **1.52** (×4.6) → ClearCount **0.02** |
-| Pettitt change-point test, 2006–2017 | raw: p < 0.001 (break at 2012-03) → ClearCount: p = 0.76 (no break) |
+| Pettitt change-point test, 2006–2017 | raw: p < 0.001 (break at 2012-03) → ClearCount: p = 0.74 (no break) |
 | NOAA-20 → S-NPP handover, test 2024–25: R² (log) / bias | **0.889 / +0.7 %** |
-| Simulated loss of S-NPP (NOAA-20 chain ÷ S-NPP chain, 2024–25) | **0.989** (monthly Spearman 0.992) |
+| Simulated loss of S-NPP (NOAA-20 chain ÷ S-NPP chain, 2024–25) | **1.001** (monthly Spearman 0.993) |
 | Terra → Aqua bridge, test 2009–11: R² (log) / bias | 0.812 / −1.3 % |
 | Case: Abai fire, June 2023 | Event #1 of 430 in the area (starts 8 Jun, 8 days); June 2023 = **32× median**, percentile 100; **10 Jun: 0 hotspots between 39 (9 Jun) and 56 (11 Jun) under ≥70 % cloud** (matches Kazakhstan Gharysh Sapary's report that clouds hid most hotspots on 10 June) |
 
@@ -172,7 +174,7 @@ Ratios (national, 2012–2021): Aqua/S-NPP = 0.190 by day and 0.048 by night.
 ## Run it
 ```bash
 cd clearcount
-python3 -m venv .venv && .venv/bin/pip install pandas numpy scipy
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # + requirements-earthdata.txt for the Earthdata steps
 ./pipeline/01_download_firms.sh            # FIRMS SP country files (public, ~300 MB)
 cd pipeline && P=../.venv/bin/python
 $P 02_prepare.py && $P 03_harmonize.py && $P 04_clouds.py && $P 05_events.py && $P 06_export_web.py
@@ -183,21 +185,24 @@ cd ../web && python3 -m http.server 8765   # open http://localhost:8765
 ```
 
 ## Data (all NASA)
-- NASA FIRMS, MODIS C6.1 active fire (Terra/Aqua), standard processing — https://firms.modaps.eosdis.nasa.gov
-- NASA FIRMS, VIIRS 375 m active fire, S-NPP and NOAA-20, standard processing
-- NASA POWER daily `CLOUD_AMT` (CERES SYN1deg) — https://power.larc.nasa.gov
-- FIRMS satellite swath outlines = Level-2 granule footprints from NASA CMR (MOD14, MYD14, VNP14IMG, VJ114IMG) — https://cmr.earthdata.nasa.gov
-- NASA GIBS / Worldview corrected-reflectance true colour (MODIS Terra/Aqua, VIIRS S-NPP/NOAA-20) — https://gibs.earthdata.nasa.gov
-- NASA POWER monthly MERRA-2: precipitation, max temperature, humidity, wind (fire-weather card)
-- *With an Earthdata Login (scripts ready, see LOGIN_SETUP.md):* MCD12Q1 land cover, MOD14A1/MYD14A1/VNP14A1/VJ114A1 daily fire masks, MCD64A1 burned area
-- *With a FIRMS MAP_KEY:* 2026 hotspots and VIIRS NOAA-21 via the FIRMS country API
+- NASA FIRMS active fire, MODIS C6.1 (Terra, Aqua) and VIIRS 375 m (S-NPP, NOAA-20, NOAA-21): standard-processing country archives + the FIRMS Area API for near-real-time data, clipped to the national border — https://firms.modaps.eosdis.nasa.gov
+- FIRMS satellite swath outlines = Level-2 granule footprints from NASA CMR (MOD14, MYD14, VNP14IMG, VJ114IMG, VJ214IMG) — https://cmr.earthdata.nasa.gov
+- MOD14/MYD14 Level-2 fire masks + MOD03/MYD03 geolocation (per-pass "blind or quiet" check)
+- MOD14A1 / MYD14A1 / VNP14A1 / VJ114A1 daily fire masks (case studies)
+- MCD64A1 burned area (independent validation) and MCD12Q1 land cover ("what burns", fire regimes)
+- NASA POWER: daily `CLOUD_AMT` (CERES SYN1deg) and precipitation; monthly MERRA-2 precipitation, max temperature, humidity, wind — https://power.larc.nasa.gov
+- NASA GIBS / Worldview corrected-reflectance true colour — https://gibs.earthdata.nasa.gov
+
+Other: geoBoundaries ADM0/ADM1 (2017, OpenStreetMap-derived, ODbL); Esri gray canvas basemaps; Leaflet, Leaflet.draw, d3.js; pandas, NumPy, SciPy, scikit-learn, earthaccess.
 
 ## Limitations and next steps
-- **v2 clear-sky layer** (needs an Earthdata Login): MOD14A1 / MYD14A1 / VNP14A1 / VJ114A1 daily fire masks, which give exact counts of clear land (class 5) and cloud (class 4) per 1 km pixel. This replaces the 1° cloud proxy.
-- **2026 and NOAA-21** need the FIRMS Area API (MAP_KEY). The country files end in Dec 2025.
-- **Ratios are calibrated for Kazakhstan.** Other biomes need their own overlap calibration; the pipeline takes any FIRMS country.
-- **Aqua after 2021** is affected by orbit drift and is deliberately not used as a reference.
+- **Calibrated for Kazakhstan.** The ratios transfer to Mongolia (+8% bias, see above), but the full pipeline (border, regions, case studies) is set up for Kazakhstan. Next: run it for all of Central Asia and other biomes, each with its own overlap calibration.
+- **Cloud correction is an estimate.** It works at 1° and daily scale (R² log 0.42 in the artificial-blinding test); per-pixel clear-sky counts from the daily fire masks are the next step for the whole country, not only the case studies.
+- **Aqua after 2021** is affected by orbit drift and is deliberately not used as a reference; MODIS ends in 2027, after which the record runs on the validated NOAA-20 / NOAA-21 chain.
+- **Weather data lag.** NASA POWER monthly MERRA-2 values appear 1–2 months late, so the fire-weather card is empty for the current month.
+- **Official statistics are sparse.** "Detected vs reported" compares with the few published Kazakh figures, which mostly count forest fires only.
 - **Hotspots are not burned area.** Small, short-lived and understory fires are missed by every sensor.
+- **Lightning fires** (such as Abai 2023) are not predictable a month ahead; the early-warning model says so.
 
 ## Prior work we build on
 - Giglio et al. 2006 (cloud- and overpass-corrected MODIS counts)
@@ -209,9 +214,13 @@ cd ../web && python3 -m http.server 8765   # open http://localhost:8765
 - INPE's reference-satellite approach
 
 ## Use of AI
-AI assistants were used to:
-- research the literature and data sources;
+AI assistants (Anthropic Claude) were used to:
+- research the literature, the challenge and NASA data access;
+- propose and critique solution approaches together with the team;
 - generate and debug the pipeline and web code;
-- draft text and translations.
+- draft English text and the Russian / Kazakh translations;
+- build the slide deck and the code-generated animation of the demo video.
 
-The Kazakh UI strings need review by a native speaker. All numbers come from running the code on NASA data.
+The demo video's voiceover is AI-generated speech (ElevenLabs); the video carries a visible watermark and the disclosure in its metadata. The ML models in the app (gradient-boosted trees, k-means, Poisson model) are our own models trained only on NASA data. Every computed number comes from running this code on NASA data.
+
+The Kazakh UI strings need review by a native speaker.
