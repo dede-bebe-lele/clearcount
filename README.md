@@ -213,6 +213,10 @@ Other: geoBoundaries ADM0/ADM1 (2017, OpenStreetMap-derived, ODbL); Esri gray ca
 - GFED5NRT (Chen et al. 2026)
 - INPE's reference-satellite approach
 
+## Team Umai (Kazakhstan, NASA Space Apps 2026 Universal Event)
+- **Dariya Nuralina — team captain and lead developer:** challenge and Kazakhstan focus, NASA data access, AI-assisted development of the pipeline and web app, deployment and auto-updates, demo video and slides.
+- **Yasin Zhalgasbaeva — testing and localization:** app testing, Kazakh and Russian review, demo and submission review.
+
 ## Use of AI
 AI assistants (Anthropic Claude) were used to:
 - research the literature, the challenge and NASA data access;
