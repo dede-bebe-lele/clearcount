@@ -61,6 +61,10 @@ def main():
     run("regions", [PY, "20_regions.py"], log=log)
     run("uncertainty", [PY, "18_uncertainty.py"], log=log)
 
+    if level >= 3 or not (WORK / "harmonized_cells_lc.pkl").exists():  # land cover feeds the regimes, so it runs first
+        run("land cover", [PY, "12_earthdata.py", "landcover"], needs=has_ed, log=log)
+        run("land-cover export", [PY, "15_export_lc.py"], log=log)
+
     if level >= 2:
         run("satellite passes", [PY, "07_looks.py"], log=log)
         run("passes export", [PY, "09_looks_export.py"], log=log)
@@ -70,8 +74,6 @@ def main():
         run("ML early warning", [PY, "13_ml_outlook.py"], log=log)
 
     if level >= 3:
-        run("land cover", [PY, "12_earthdata.py", "landcover"], needs=has_ed, log=log)
-        run("land-cover export", [PY, "15_export_lc.py"], log=log)
         run("case masks", [PY, "12_earthdata.py", "cases"], needs=has_ed, log=log)
         run("case passes", [PY, "14_case_overpass.py"], needs=has_ed, log=log)
         run("burned area", [PY, "12_earthdata.py", "burned"], needs=has_ed, log=log)
