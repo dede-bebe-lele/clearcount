@@ -21,7 +21,7 @@ OUT = WORK / "earthdata"
 OUT.mkdir(exist_ok=True)
 KZ_BBOX = (46.4, 40.5, 87.4, 55.5)  # lon_min, lat_min, lon_max, lat_max (earthaccess order)
 CASES = {"abai_2023_06": ((78.8, 49.8, 81.8, 51.3), "2023-06-01", "2023-06-30"),
-         "bayanaul_2024_10": ((74.8, 50.2, 76.8, 51.3), "2024-10-01", "2024-10-31")}
+         "bayanaul_2024_10": ((74.6, 49.6, 76.8, 51.3), "2024-10-01", "2024-10-31")}
 
 # MODIS sinusoidal grid
 R, T, NPIX = 6371007.181, 1111950.5197665233, {"1km": 1200, "500m": 2400}
