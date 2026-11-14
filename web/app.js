@@ -466,7 +466,7 @@
     if (!D.regions) { $("regionsCard").hidden = true; return; }
     const rows = D.regions.regions.filter((r) => r.cells > 3).map((r) => ({ r, ...regionStats(r.h, S.sel) })).sort((a, b) => b.p - a.p || b.v - a.v);
     const nm = (r) => (S.lang === "ru" ? r.name_ru : r.name);
-    $("regionsBody").innerHTML = `<table class="t"><thead><tr><th>${S.lang === "ru" ? "Область" : "Region"}</th><th style="text-align:right">${label(S.sel)}</th><th style="text-align:right">× median</th><th style="text-align:right">percentile</th><th style="text-align:right">Jan–${MONTHS[S.lang][ym(S.sel)[1]]} vs median</th></tr></thead><tbody>${rows.map((o, k) => `<tr data-k="${D.regions.regions.indexOf(o.r)}" style="cursor:pointer"><td><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${pctColor(o.p)};margin-right:6px"></span>${nm(o.r)}</td><td class="mono" style="text-align:right">${fmt(o.v, 0)}</td><td class="mono" style="text-align:right">${o.med > 0 ? fmt(o.v / o.med, 1) : "–"}</td><td class="mono" style="text-align:right;color:${o.p >= .9 ? "var(--ember-2)" : o.p <= .25 ? "var(--sky)" : "inherit"}">${fmt(o.p * 100, 0)}</td><td class="mono" style="text-align:right">${o.ytdMed > 0 ? (o.ytd >= o.ytdMed ? "+" : "") + fmt((o.ytd / o.ytdMed - 1) * 100, 0) + "%" : "–"}</td></tr>`).join("")}</tbody></table>`;
+    $("regionsBody").innerHTML = `<table class="t"><thead><tr><th>${S.lang === "ru" ? "Область" : "Region"}</th><th style="text-align:right">${label(S.sel)}</th><th style="text-align:right">× median</th><th style="text-align:right">percentile</th><th style="text-align:right">Jan–${MONTHS[S.lang][ym(S.sel)[1]]} vs median</th></tr></thead><tbody>${rows.map((o, k) => `<tr data-k="${D.regions.regions.indexOf(o.r)}" style="cursor:pointer"><td><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${pctColor(o.p)};margin-right:6px"></span>${nm(o.r)}</td><td class="mono" style="text-align:right">${o.v > 0 && o.v < .05 ? "<0.1" : fmt(o.v, o.v > 0 && o.v < 10 ? 1 : 0)}</td><td class="mono" style="text-align:right">${o.med > 0 ? fmt(o.v / o.med, 1) : "–"}</td><td class="mono" style="text-align:right;color:${o.p >= .9 ? "var(--ember-2)" : o.p <= .25 ? "var(--sky)" : "inherit"}">${fmt(o.p * 100, 0)}</td><td class="mono" style="text-align:right">${o.ytdMed > 0 ? (o.ytd >= o.ytdMed ? "+" : "") + fmt((o.ytd / o.ytdMed - 1) * 100, 0) + "%" : "–"}</td></tr>`).join("")}</tbody></table>`;
     $("regionsBody").querySelectorAll("tr[data-k]").forEach((tr) => tr.addEventListener("click", () => selectRegion(D.regions.regions[+tr.dataset.k])));
     $("regionsSrc").textContent = "Source: harmonized NASA FIRMS record aggregated by region · " + D.regions.source;
   }
@@ -579,7 +579,7 @@
     const ante = (j) => d3.mean([j - 1, j - 2, j - 3].filter((q) => q >= 0), (q) => W.precip_mm_day[q]);
     const anteNow = ante(i), anteBase = d3.mean(d3.range(BASE_Y0, BASE_Y1 + 1).map((y) => ante(idxOf(y, m))).filter(isFinite));
     $("wxGrid").innerHTML = card("precip_mm_day", "mm/d", "precipitation", true) + card("tmax_c", "°C", "max temperature", false) + card("rh_pct", "%", "humidity", false) +
-      card("wind_ms", "m/s", "wind", false) + `<div class="metric"><b class="mono ${anteNow < .7 * anteBase ? "meh" : ""}">${fmt((anteNow / anteBase - 1) * 100, 0)}%</b><span>rain in the 3 months before, vs normal</span></div>`;
+      card("wind_ms", "m/s", "wind", false) + (isFinite(W.precip_mm_day[i]) ? "" : `<p class="muted" style="grid-column:1/-1;margin:0;font-size:12px">${{ en: "NASA POWER monthly weather (MERRA-2) for this month is not published yet (about 1–2 months of lag). Pick an earlier month in the calendar.", ru: "Месячные данные NASA POWER (MERRA-2) за этот месяц ещё не опубликованы (задержка ~1–2 месяца). Выберите более ранний месяц в календаре.", kk: "Бұл айдың NASA POWER (MERRA-2) айлық деректері әлі жарияланбаған (~1–2 ай кешігу). Күнтізбеден ертерек айды таңдаңыз." }[S.lang]}</p>`) + `<div class="metric"><b class="mono ${anteNow < .7 * anteBase ? "meh" : ""}">${fmt((anteNow / anteBase - 1) * 100, 0)}%</b><span>rain in the 3 months before, vs normal</span></div>`;
     // which weather tracks fire in this area? fire-season months Apr-Oct, all years
     const idx = d3.range(D.n).filter((j) => { const [, mm] = ym(j); return mm >= 3 && mm <= 9; });
     const fireP = idx.map((j) => pctRank(D.agg.H[j], ym(j)[1]));
@@ -684,10 +684,22 @@
 
   // ---------- reported ----------
   function renderReported() {
-    const nEv = (a, b) => D.events.rows.filter((r) => r[0].slice(0, 7) >= a && r[0].slice(0, 7) <= b).length;
-    $("reported").innerHTML = `<table class="t"><thead><tr><th>Period</th><th>Reported (official / press)</th><th style="text-align:right">ClearCount detected</th></tr></thead><tbody>` +
-      REPORTED.map((r) => `<tr><td>${r.period}</td><td>${r.what[S.lang] || r.what.en} <a href="${r.src}" target="_blank" rel="noopener">↗</a></td><td class="mono" style="text-align:right">${r.y0 ? fmt(nEv(r.y0, r.y1), 0) + " events" : "–"}</td></tr>`).join("") +
-      `</tbody></table><p class="muted" style="font-size:12px;margin:8px 0 0">Satellites detect hotspots in grassland and cropland fires that are often not counted as "forest fires" in official statistics. The two numbers are not expected to match. That gap is part of the point.</p>`;
+    const L = { en: ["Period", "Reported (official / press)", "ClearCount detected", "fires", "hotspots", "case area", "Kazakhstan"],
+      ru: ["Период", "Официально / пресса", "ClearCount обнаружил", "пожаров", "точек", "район кейса", "Казахстан"],
+      kk: ["Кезең", "Ресми / баспасөз", "ClearCount анықтады", "өрт", "нүкте", "кейс аймағы", "Қазақстан"] }[S.lang] || [];
+    const stat = (r) => {
+      const ev = D.events.rows.filter((e) => e[0] <= r.d1 && e[1] >= r.d0 && (!r.bbox || (e[5] >= r.bbox[0] && e[5] <= r.bbox[2] && e[6] >= r.bbox[1] && e[6] <= r.bbox[3])));
+      const h = d3.sum(ev, (e) => e[3]);
+      const n = ev.length, ru = n % 10 === 1 && n % 100 !== 11 ? "пожар" : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? "пожара" : "пожаров";
+      const fw = S.lang === "ru" ? ru : S.lang === "en" ? (n === 1 ? "fire" : "fires") : L[3];
+      return `${fmt(n, 0)} ${fw} · ${fmt(h, 0)} ${L[4]}<br><span class="muted" style="font-size:11px">${r.bbox ? L[5] : L[6]} · ${r.d0} → ${r.d1}</span>`;
+    };
+    const note = { en: "Satellites detect hotspots in grassland and cropland fires that are often not counted as \"forest fires\" in official statistics, so the two numbers are not expected to match. That gap is part of the point. ClearCount counts linked fires (≥3 harmonized hotspots, ≤2 km and ≤1 day apart) active in the period.",
+      ru: "Спутники видят степные и полевые пожары, которые часто не входят в официальную статистику «лесных пожаров», поэтому числа и не должны совпадать. В этом разрыве и смысл. ClearCount считает связанные пожары (≥3 гармонизированных точки, ≤2 км и ≤1 день), активные в этот период.",
+      kk: "Спутниктер ресми «орман өрті» статистикасына жиі кірмейтін дала мен егістік өрттерін көреді, сондықтан сандар сәйкес келмеуі заңды. ClearCount кезеңде белсенді байланысқан өрттерді санайды (≥3 нүкте, ≤2 км, ≤1 күн)." }[S.lang];
+    $("reported").innerHTML = `<table class="t"><thead><tr><th>${L[0]}</th><th>${L[1]}</th><th style="text-align:right">${L[2]}</th></tr></thead><tbody>` +
+      REPORTED.map((r) => `<tr><td>${r.period}</td><td>${r.what[S.lang] || r.what.en} <a href="${r.src}" target="_blank" rel="noopener">↗</a></td><td class="mono" style="text-align:right">${r.d0 ? stat(r) : "–"}</td></tr>`).join("") +
+      `</tbody></table><p class="muted" style="font-size:12px;margin:8px 0 0">${note}</p>`;
   }
 
   // ---------- map ----------
