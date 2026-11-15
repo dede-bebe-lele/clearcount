@@ -859,6 +859,21 @@
 
   // ---------- exports ----------
   function download(name, text, type = "text/csv") { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+  // full harmonized record for the whole country, every 0.25-degree cell and month (open data)
+  function exportAllCSV() {
+    const g = D.meta.grid, lines = [
+      "# ClearCount harmonized fire record: Kazakhstan, all 0.25-degree cells, " + D.meta.start + " to " + D.meta.end,
+      "# Data card",
+      "#   harmonized_hotspots: active-fire detections of all five satellites (MODIS Terra/Aqua, VIIRS S-NPP/NOAA-20/NOAA-21) converted to MODIS Aqua equivalents",
+      "#     with ratios by 3-degree block, season and day/night; gas flares and industrial heat removed. Sum over months and cells, then compare years freely.",
+      "#   raw_firms_detections: plain count of FIRMS detections of all satellites in the cell and month (not comparable across years).",
+      "#   cell_lat, cell_lon: centre of a " + g + "-degree cell. Rows with no detection are omitted (no detection is not proof of no fire: clouds; see the per-area calendar CSV).",
+      "# Validation (years never used for fitting, 2018-2021): R2 = 0.92 on log monthly counts, national bias -1.8%; 2012 sensor break removed (Pettitt p = 0.74).",
+      "# Source: NASA FIRMS standard processing + near-real-time. Code and method: https://github.com/dede-bebe-lele/clearcount . Free to use; please cite ClearCount (Team Umai, NASA Space Apps 2026) and NASA FIRMS.",
+      "cell_lat,cell_lon,year,month,harmonized_hotspots,raw_firms_detections"];
+    for (const [la, lo, ms, hs, rs] of D.cells) for (let q = 0; q < ms.length; q++) { const [y, m] = ym(ms[q]); lines.push(`${la},${lo},${y},${m + 1},${(+hs[q]).toFixed(2)},${rs[q]}`); }
+    download(`clearcount_kazakhstan_full_record_${D.meta.start}_${D.meta.end}.csv`, lines.join("\n"));
+  }
   function exportCalendarCSV() {
     const A = D.agg; const lines = ["year,month,harmonized_hotspots,raw_firms_detections,percentile_vs_2003_2021,median_2003_2021,mean_2003_2021,cloudy_day_fraction,satellites_mostly_blind"];
     for (let y = S.y0; y <= S.y1; y++) for (let m = 0; m < 12; m++) { const i = idxOf(y, m); if (i < 0 || i >= D.n) continue;
@@ -1007,7 +1022,7 @@
     $("btnAbout").addEventListener("click", () => $("dlgAbout").showModal());
     document.querySelectorAll("dialog [data-close]").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
     $("expCal").addEventListener("click", exportCalendarCSV); $("expPts").addEventListener("click", exportPointsCSV);
-    $("expPng").addEventListener("click", exportPNG); $("expPdf").addEventListener("click", () => { document.title = `ClearCount report — ${$("preset").selectedOptions[0].text}`; window.print(); });
+    $("expPng").addEventListener("click", exportPNG); $("expAll").addEventListener("click", exportAllCSV); $("expPdf").addEventListener("click", () => { document.title = `ClearCount report — ${$("preset").selectedOptions[0].text}`; window.print(); });
     let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { renderRaw(); renderSeason(); renderHood(); renderDrift(); renderYTD(); }, 200); });
     // small API for the guided story (story.js)
     window.CC = {
