@@ -46,6 +46,7 @@
     D.regions = await get("regions.json").catch(() => null);
     D.bc = await get("blind_correction.json").catch(() => null);
     D.rel = await get("reliability.json").catch(() => null);
+    D.rtr = await get("region_trends.json").catch(() => null);
     D.meta = cells.meta; D.n = cells.meta.n_months;
     D.cLat = Float32Array.from(cells.cells, (c) => c[0]);
     D.cLon = Float32Array.from(cells.cells, (c) => c[1]);
@@ -478,6 +479,29 @@
     const z = v > 0 ? (sgn - Math.sign(sgn)) / Math.sqrt(v) : 0; const p = 2 * (1 - normCdf(Math.abs(z))); const sl = []; for (let i = 0; i < n - 1; i++) for (let j = i + 1; j < n; j++) sl.push((x[j] - x[i]) / (j - i));
     return { z, p, slope: d3.median(sl), med: d3.median(x) }; }
   function normCdf(z) { const t = 1 / (1 + .2316419 * z), d = .3989423 * Math.exp(-z * z / 2); return 1 - d * t * (.3193815 + t * (-.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); }
+  // per-region trend test: raw FIRMS vs ClearCount (the sensor change fakes a rise almost everywhere)
+  function regionTrendHTML() {
+    if (!D.rtr) return "";
+    const L = S.lang, rows = D.rtr.regions.filter((r) => r.cells > 3).map((r) => ({ r, raw: mk(r.raw), h: mk(r.h) }));
+    const pct = (o) => (o.med > 0 ? o.slope / o.med * 100 : 0);
+    const n = rows.length, rUp = rows.filter((o) => pct(o.raw) > 0).length, rUpS = rows.filter((o) => pct(o.raw) > 0 && o.raw.p < .05).length;
+    const hDn = rows.filter((o) => pct(o.h) < 0).length, hDnS = rows.filter((o) => pct(o.h) < 0 && o.h.p < .05).length, hUpS = rows.filter((o) => pct(o.h) > 0 && o.h.p < .05).length;
+    const cell = (o) => { const v = pct(o), c = o.p < .05 ? (v < 0 ? "var(--sky)" : "var(--ember-2)") : "var(--muted)"; return `<td class="mono" style="text-align:right;color:${c}">${v > 0 ? "+" : ""}${fmt(v, 1)}%${o.p < .05 ? "" : " <span style=\"font-size:10px\">n.s.</span>"}</td>`; };
+    const head = {
+      en: `<b>Region by region, the raw record says fire is rising in ${rUp} of ${n} regions</b> (significantly in ${rUpS}). <b>On ClearCount it is falling in ${hDn} of ${n}</b> (significantly in ${hDnS}${hUpS ? `; rising significantly in ${hUpS}` : ""}).`,
+      ru: `<b>По областям сырые данные показывают рост пожаров в ${rUp} из ${n}</b> (значимый в ${rUpS}). <b>В ClearCount пожаров становится меньше в ${hDn} из ${n}</b> (значимо в ${hDnS}${hUpS ? `; значимый рост в ${hUpS}` : ""}).`,
+      kk: `<b>Облыстар бойынша шикі деректер ${n} облыстың ${rUp}-інде өрттің өсуін көрсетеді</b> (${rUpS}-інде маңызды). <b>ClearCount бойынша ${n} облыстың ${hDn}-інде өрт азаяды</b> (${hDnS}-інде маңызды${hUpS ? `; ${hUpS}-інде маңызды өсу` : ""}).`
+    }[L] || "";
+    const th = { en: ["Region", "Raw FIRMS", "ClearCount"], ru: ["Область", "Сырые FIRMS", "ClearCount"], kk: ["Облыс", "Шикі FIRMS", "ClearCount"] }[L] || ["Region", "Raw FIRMS", "ClearCount"];
+    const note = { en: `Mann-Kendall test and Sen's slope on annual totals ${D.rtr.years.join("–")}, % of the median year per year; n.s. = not significant (p ≥ 0.05). Region borders: geoBoundaries 2017 (Abai, Jetisu and Ulytau are inside their 2017 parents).`,
+      ru: `Тест Манна–Кендалла и наклон Сена по годовым суммам ${D.rtr.years.join("–")}, % от медианного года в год; n.s. = незначимо (p ≥ 0.05). Границы: geoBoundaries 2017 (Абай, Жетысу и Улытау входят в свои области 2017 года).`,
+      kk: `Манн–Кендалл тесті және Сен еңісі, ${D.rtr.years.join("–")} жылдық сомалар бойынша, жылына медиана жылдың %-ы; n.s. = маңызды емес (p ≥ 0.05). Шекаралар: geoBoundaries 2017 (Абай, Жетісу және Ұлытау 2017 жылғы облыстарының ішінде).` }[L] || "";
+    rows.sort((a, b) => pct(b.raw) - pct(a.raw));
+    return `<div id="regTrend" style="margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel-2)"><p style="margin:0 0 6px;font-size:13px;line-height:1.5">🗺️ ${head}</p>
+      <details><summary class="muted" style="cursor:pointer;font-size:12px">${{ en: "Show all regions", ru: "Показать все области", kk: "Барлық облыстарды көрсету" }[L] || "Show all regions"}</summary>
+      <table class="t" style="margin-top:6px"><thead><tr><th>${th[0]}</th><th style="text-align:right">${th[1]}</th><th style="text-align:right">${th[2]}</th></tr></thead><tbody>${rows.map((o) => `<tr><td>${L === "ru" ? o.r.name_ru : o.r.name}</td>${cell(o.raw)}${cell(o.h)}</tr>`).join("")}</tbody></table>
+      <p class="muted" style="font-size:11px;margin:6px 0 0">${note}</p></details></div>`;
+  }
   function renderTrends() {
     if (!D.trends) { $("trendCard").hidden = true; return; }
     const T = D.trends, years = d3.range(2003, 2026), A = D.agg;
@@ -489,7 +513,7 @@
     $("trendBody").innerHTML = `<p style="margin:0 0 10px"><b>The raw data gets the trend backwards.</b> Across Kazakhstan, raw NASA FIRMS hotspots suggest fires are <b style="color:var(--ember-2)">rising ${fmt(T.national.raw.sen_pct_per_yr, 1)}%/yr</b>, but only because new satellites joined. On the harmonized record, fires are <b style="color:var(--sky)">falling ${fmt(Math.abs(T.national.harmonized.sen_pct_per_yr), 1)}%/yr</b> (p < 0.001). This matches published studies of the Kazakh steppe (more grazing, wetter years).</p>
       <div class="trbars"><span>Raw FIRMS</span>${bar(T.raw, nH)}<span>ClearCount</span>${bar(T.harmonized, nH)}</div>
       <p class="muted" style="font-size:12px;margin:6px 0 10px"><span style="color:#3b82f6">■</span> significant decrease · <span style="color:#9aa3b0">■</span> no significant trend · <span style="color:#f97316">■</span> significant increase, out of ${nH} 1° cells (Raw: ${T.raw.up} up / ${T.raw.down} down; ClearCount: ${T.harmonized.up} up / ${T.harmonized.down} down). Switch the map to <b>Trend</b> and <b>Raw-data trend</b> to compare.</p>
-      <p style="margin:0">This area, 2003–2025: ClearCount ${fmtT(h)} · raw FIRMS ${fmtT(r)}</p>`;
+      <p style="margin:0">This area, 2003–2025: ClearCount ${fmtT(h)} · raw FIRMS ${fmtT(r)}</p>` + regionTrendHTML();
     if (!D.regimes) return;
     const b = aoiBounds(), here = d3.rollup(D.regimes.cells.filter(([la, lo]) => la + .5 >= b[0] && la - .5 <= b[2] && lo + .5 >= b[1] && lo - .5 <= b[3]), (v) => v.length, (d) => d[2]);
     $("regimeBody").innerHTML = `<div class="tag" style="margin-bottom:6px">Fire regimes found by machine learning (unsupervised)</div><div class="regimes">${D.regimes.clusters.map((c, k) => {
