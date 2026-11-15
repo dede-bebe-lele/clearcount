@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css">
-<link rel="stylesheet" href="styles.css?v=28">
+<link rel="stylesheet" href="styles.css?v=29">
 </head>
 <body data-mode="responder">
 <a class="skip" href="#nowCard">Skip to results</a>
@@ -107,7 +107,23 @@
       <p class="src">Source: NASA FIRMS MODIS C6.1 + VIIRS 375 m (standard + near-real-time), harmonized by ClearCount · baseline = median of the same month 2003–2021 · cloud: NASA POWER (CERES SYN1deg) · ± = 95% calibration interval</p></div>
     </section>
 
-    <section class="card chart" id="ytdCard">
+    <section class="card cal">
+      <div class="card-h"><h2 data-i18n="cal_title">Burning calendar</h2><span class="hint" data-i18n="cal_hint"></span>
+        <span class="spacer"></span>
+        <div class="seg" role="group" aria-label="Calendar view" id="viewSeg">
+          <button data-view="pct" aria-pressed="true" data-i18n="view_pct">Rank</button>
+          <button data-view="abs" aria-pressed="false" data-i18n="view_abs">Hotspots</button>
+          <button data-view="anom" aria-pressed="false" data-i18n="view_anom">Anomaly %</button>
+        </div>
+      </div>
+      <div class="card-b">
+        <div class="cal-wrap" id="calendar"></div>
+        <div class="legend" id="calLegend"></div>
+        <details style="margin-top:8px"><summary class="muted" data-i18n="table_view">Table view</summary><div id="calTable" style="overflow:auto;max-height:320px"></div></details>
+      <p class="src">Source: NASA FIRMS (MODIS + VIIRS), harmonized · rank vs same month 2003–2021 · hatching: ≥60% of days with ≥70% cloud (NASA POWER)</p></div>
+    </section>
+
+    <section class="card chart hide-responder" id="ytdCard">
       <div class="card-h"><h2 data-i18n="ytd_title">Season to date</h2><span class="hint" data-i18n="ytd_hint">cumulative harmonized hotspots from 1 January, every year since 2001</span></div>
       <div class="card-b"><p id="ytdStatus" style="margin:0 0 8px"></p><div id="ytdChart"></div>
         <details style="margin-top:8px"><summary class="muted" data-i18n="ytd_table">Same-date table (vs last year, vs 2003–2021 mean)</summary><div id="ytdTable" style="overflow:auto;max-height:340px"></div></details>
@@ -129,28 +145,13 @@
       <div class="card-b"><div id="dayChart"></div><div id="dayText" class="muted" style="font-size:12px;margin-top:6px"></div><p class="src">Source: NASA FIRMS hotspots · NASA POWER daily cloud (CERES SYN1deg) · FIRMS swath outlines via NASA CMR · NASA GIBS true colour · per-pass check: MOD14/MYD14 Level-2 + MOD03/MYD03</p></div>
     </section>
 
-    <section class="card cal">
-      <div class="card-h"><h2 data-i18n="cal_title">Burning calendar</h2><span class="hint" data-i18n="cal_hint"></span>
-        <span class="spacer"></span>
-        <div class="seg" role="group" aria-label="Calendar view" id="viewSeg">
-          <button data-view="pct" aria-pressed="true" data-i18n="view_pct">Rank</button>
-          <button data-view="abs" aria-pressed="false" data-i18n="view_abs">Hotspots</button>
-          <button data-view="anom" aria-pressed="false" data-i18n="view_anom">Anomaly %</button>
-        </div>
-      </div>
-      <div class="card-b">
-        <div class="cal-wrap" id="calendar"></div>
-        <div class="legend" id="calLegend"></div>
-        <details style="margin-top:8px"><summary class="muted" data-i18n="table_view">Table view</summary><div id="calTable" style="overflow:auto;max-height:320px"></div></details>
-      <p class="src">Source: NASA FIRMS (MODIS + VIIRS), harmonized · rank vs same month 2003–2021 · hatching: ≥60% of days with ≥70% cloud (NASA POWER)</p></div>
-    </section>
 
     <section class="card chart">
       <div class="card-h"><h2 data-i18n="raw_title">Raw sum vs ClearCount</h2><span class="hint" data-i18n="raw_hint"></span></div>
       <div class="card-b"><div id="rawChart"></div><p class="src">Source: NASA FIRMS standard + NRT · shaded band = 95% bootstrap interval of the calibration ratios</p></div>
     </section>
 
-    <div class="grid2">
+    <div class="grid2 hide-responder">
       <section class="card">
         <div class="card-h"><h2 data-i18n="records_title">Records</h2></div>
         <div class="card-b" id="records"></div>
@@ -161,7 +162,7 @@
       </section>
     </div>
 
-    <section class="card">
+    <section class="card hide-responder">
       <div class="card-h"><h2 data-i18n="events_title">Fire events</h2><span class="hint" data-i18n="events_hint"></span></div>
       <div class="card-b" id="events"></div><div class="card-b" style="padding-top:0"><p class="src">Source: harmonized NASA FIRMS hotspots, linked when ≤2 km and ≤1 day apart · size in MODIS-Aqua-equivalent hotspots</p></div>
     </section>
@@ -178,7 +179,7 @@
       <p class="src">Source: harmonized NASA FIRMS record · Mann–Kendall test + Sen's slope per 1° cell, Benjamini–Hochberg false-discovery control (q = 0.10) · regimes: k-means clustering (scikit-learn) on seasonal profile, activity, variability, cropland share (MCD12Q1) and night share</p></div>
     </section>
 
-    <section class="card chart" id="lcCard">
+    <section class="card chart hide-responder" id="lcCard">
       <div class="card-h"><h2 data-i18n="lc_title">What burns</h2><span class="hint" data-i18n="lc_hint">harmonized hotspots by land cover (NASA MCD12Q1)</span></div>
       <div class="card-b"><div class="grid2"><div id="lcYear"></div><div id="lcMonth"></div></div><p id="lcText" class="muted" style="font-size:12.5px;margin:6px 0 0"></p><p class="src">Source: NASA MCD12Q1 v061 (2020, IGBP), 500 m · harmonized hotspots</p></div>
     </section>
@@ -193,10 +194,12 @@
       <div class="card-b"><div id="driftChart"></div><p id="driftText" class="muted" style="font-size:12.5px;margin:6px 0 0"></p><p class="src">Source: NASA FIRMS daytime landscape-fire detections, relative to VIIRS S-NPP (maintained orbit) · 95% bootstrap over days</p></div>
     </section>
 
-    <section class="card" id="reportedCard">
+    <section class="card hide-responder" id="reportedCard">
       <div class="card-h"><h2 data-i18n="reported_title">Detected vs reported</h2><span class="hint" data-i18n="reported_hint"></span></div>
       <div class="card-b" id="reported"></div><div class="card-b" style="padding-top:0"><p class="src">Source: Ministry of Emergency Situations and press reports (links), compared with ClearCount fire events</p></div>
     </section>
+
+    <p class="responder-only more-note"><span data-i18n="more_note">More analyses (season to date, records, fire season clock, fire events, what burns, official figures):</span> <button class="btn ghost" data-goto-mode="land" data-i18n="mode_land">Land manager</button> <button class="btn ghost" data-goto-mode="scientist" data-i18n="mode_scientist">Scientist</button></p>
 
     <section class="card export-card">
       <div class="card-h"><h2 data-i18n="export_title">Download</h2></div>
@@ -224,10 +227,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-<script src="i18n.js?v=28"></script>
-<script src="content.js?v=28"></script>
-<script src="content_about.js?v=28"></script>
-<script src="story.js?v=28"></script>
-<script src="app.js?v=28"></script>
+<script src="i18n.js?v=29"></script>
+<script src="content.js?v=29"></script>
+<script src="content_about.js?v=29"></script>
+<script src="story.js?v=29"></script>
+<script src="app.js?v=29"></script>
 </body>
 </html>
