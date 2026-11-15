@@ -45,6 +45,7 @@
     D.regimes = await get("regimes.json").catch(() => null);
     D.regions = await get("regions.json").catch(() => null);
     D.bc = await get("blind_correction.json").catch(() => null);
+    D.rel = await get("reliability.json").catch(() => null);
     D.meta = cells.meta; D.n = cells.meta.n_months;
     D.cLat = Float32Array.from(cells.cells, (c) => c[0]);
     D.cLon = Float32Array.from(cells.cells, (c) => c[1]);
@@ -777,7 +778,40 @@
     if (focus) { const el = document.querySelector("#calendar rect.c.sel"); if (el) el.focus(); }
   }
   function goCalendar() { const c = $("calendar"); if (c) c.closest(".card").scrollIntoView({ behavior: "smooth", block: "start" }); }
-  function renderAll() { renderNow(); renderYTD(); renderRegions(); renderML(); renderLC(); renderTrends(); renderWeather(); renderDaily(); renderCalendar(); renderRaw(); renderRecords(); renderSeason(); renderEvents(); renderHood(); renderDrift(); renderReported(); renderMapCells(); }
+  // per-area reliability: VIIRS converted to the MODIS Aqua scale vs. what Aqua really counted, in hidden years
+  function renderRel() {
+    const el = $("relBox"); if (!el) return;
+    if (!D.rel) { el.hidden = true; return; }
+    const b = aoiBounds(), poly = S.aoi.type !== "bbox", O = {}, P = {};
+    let nc = 0;
+    const [y0, y1] = D.rel.test_years;
+    for (const [la, lo, os, ps] of D.rel.cells) {
+      if (!(la + 1 > b[0] && la < b[2] && lo + 1 > b[1] && lo < b[3])) continue;
+      if (poly && ![[la + .5, lo + .5], [la, lo], [la + 1, lo], [la, lo + 1], [la + 1, lo + 1]].some(([x, y]) => inAOI(x, y))) continue;
+      nc++;
+      for (let q = 0; q < os.length; q++) { const y = y0 + q; O[y] = (O[y] || 0) + os[q]; P[y] = (P[y] || 0) + ps[q]; }
+    }
+    const ys = d3.range(y0, y1 + 1).filter((y) => (O[y] || 0) >= 10);
+    const tot = d3.sum(Object.values(O)), L = S.lang;
+    const head = { en: "How far can you trust this area's record?", ru: "Насколько можно доверять данным по этой области?", kk: "Бұл аумақтың деректеріне қаншалықты сенуге болады?" }[L];
+    el.hidden = false;
+    if (ys.length < 2 || tot < 30) {
+      el.innerHTML = `🎯 <b>${head}</b> ${{ en: `Too few MODIS Aqua hotspots here in ${y0}–${y1} to measure it; treat small areas with care.`, ru: `Здесь в ${y0}–${y1} слишком мало точек MODIS Aqua, чтобы это измерить; к маленьким областям относитесь осторожно.`, kk: `${y0}–${y1} жылдары мұнда MODIS Aqua нүктелері тым аз, сондықтан өлшеу мүмкін емес; шағын аумақтарға абай болыңыз.` }[L]}`;
+      return;
+    }
+    const err = ys.map((y) => (P[y] - O[y]) / O[y] * 100), abs = err.map(Math.abs);
+    const typ = d3.median(abs), worst = d3.max(abs), bias = (d3.sum(ys, (y) => P[y]) / d3.sum(ys, (y) => O[y]) - 1) * 100;
+    const col = typ <= 10 ? "var(--ok)" : typ <= 25 ? "var(--warn)" : "var(--bad)";
+    const yrs = ys.map((y, k) => `${y}: <span class="mono">${err[k] >= 0 ? "+" : ""}${fmt(err[k], 0)}%</span>`).join(" · ");
+    el.innerHTML = `🎯 <b>${head}</b> <b class="mono" style="color:${col};font-size:15px">±${fmt(typ, 0)}%</b> ${{ en: "typical miss of a yearly total", ru: "типичная ошибка годовой суммы", kk: "жылдық соманың әдеттегі қатесі" }[L]}<br>` +
+      `<span class="muted" style="font-size:12px">${{
+        en: `Test on years the calibration never saw: ratios fitted on ${D.rel.train_years.join("–")}, then VIIRS S-NPP for ${y0}–${y1} converted to the MODIS Aqua scale and compared with what Aqua really counted over the ${nc} one-degree cell(s) covering this area (${fmt(tot, 0)} Aqua hotspots). Worst year ±${fmt(worst, 0)}%, overall bias ${bias >= 0 ? "+" : ""}${fmt(bias, 1)}%. ${yrs}. Smaller areas have larger errors.`,
+        ru: `Проверка на годах, которые калибровка не видела: коэффициенты подобраны по ${D.rel.train_years.join("–")}, затем VIIRS S-NPP за ${y0}–${y1} переведён в шкалу MODIS Aqua и сравнён с тем, что Aqua насчитал на самом деле, по ${nc} клеткам 1°, покрывающим область (${fmt(tot, 0)} точек Aqua). Худший год ±${fmt(worst, 0)}%, общее смещение ${bias >= 0 ? "+" : ""}${fmt(bias, 1)}%. ${yrs}. Чем меньше область, тем больше ошибка.`,
+        kk: `Калибровка көрмеген жылдардағы тексеру: коэффициенттер ${D.rel.train_years.join("–")} бойынша алынды, содан кейін ${y0}–${y1} жылдардағы VIIRS S-NPP MODIS Aqua шкаласына ауыстырылып, аумақты жабатын ${nc} 1° ұяшықта Aqua шын мәнінде санағанмен салыстырылды (${fmt(tot, 0)} Aqua нүктесі). Ең нашар жыл ±${fmt(worst, 0)}%, жалпы ығысу ${bias >= 0 ? "+" : ""}${fmt(bias, 1)}%. ${yrs}. Аумақ неғұрлым кіші болса, қате соғұрлым үлкен.`
+      }[L]}</span>`;
+  }
+
+  function renderAll() { renderNow(); renderRel(); renderYTD(); renderRegions(); renderML(); renderLC(); renderTrends(); renderWeather(); renderDaily(); renderCalendar(); renderRaw(); renderRecords(); renderSeason(); renderEvents(); renderHood(); renderDrift(); renderReported(); renderMapCells(); }
 
   function writeHash() {
     const b = aoiBounds(); const [y, m] = ym(S.sel);
