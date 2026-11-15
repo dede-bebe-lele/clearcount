@@ -195,6 +195,18 @@ cd ../web && python3 -m http.server 8765   # open http://localhost:8765
 
 Other: geoBoundaries ADM0/ADM1 (2017, OpenStreetMap-derived, ODbL); Esri gray canvas basemaps; Leaflet, Leaflet.draw, d3.js; pandas, NumPy, SciPy, scikit-learn, earthaccess.
 
+## Open data: the full harmonized record
+The **Download** card has a button for the whole record: every 0.25° cell of Kazakhstan and every month from November 2000 to now (about 176,000 rows, 5 MB CSV), built in the browser from `web/data/cells.json`.
+
+| column | meaning |
+|---|---|
+| `cell_lat`, `cell_lon` | centre of the 0.25° cell |
+| `year`, `month` | calendar month |
+| `harmonized_hotspots` | detections of all five satellites converted to MODIS Aqua equivalents (ratios by 3° block, season, day/night); gas flares and industrial heat removed; comparable across years |
+| `raw_firms_detections` | plain FIRMS count of all satellites; not comparable across years |
+
+Rows without detections are left out; no detection is not proof of no fire (clouds), so use the per-area calendar CSV for cloud blindness. Validation on 2018–2021, years never used for fitting: R² = 0.92 on log monthly counts, national bias −1.8%. Free to use; please cite ClearCount (Team Umai, NASA Space Apps 2026) and NASA FIRMS.
+
 ## Limitations and next steps
 - **Calibrated for Kazakhstan.** The ratios transfer to Mongolia (+8% bias, see above), but the full pipeline (border, regions, case studies) is set up for Kazakhstan. Next: run it for all of Central Asia and other biomes, each with its own overlap calibration.
 - **Cloud correction is an estimate.** It works at 1° and daily scale (R² log 0.42 in the artificial-blinding test); per-pixel clear-sky counts from the daily fire masks are the next step for the whole country, not only the case studies.
