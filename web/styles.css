@@ -165,6 +165,11 @@ footer { max-width: 1500px; margin: 0 auto; padding: 10px 20px 40px; color: var(
 .mode-scientist-only, .mode-land-only { display: none; }
 body[data-mode="scientist"] .mode-scientist-only { display: block; }
 body[data-mode="land"] .mode-land-only { display: block; }
+body[data-mode="responder"] .hide-responder { display: none; }
+.responder-only { display: none; }
+body[data-mode="responder"] .responder-only { display: block; }
+.more-note { margin: 0; padding: 4px 2px; font-size: 13px; color: var(--muted); }
+.more-note .btn { margin-left: 6px; }
 
 .loading { position: fixed; inset: 0; z-index: 5000; display: grid; place-items: center; background: var(--bg); transition: opacity .4s; }
 .loading .orb { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--ember); animation: spin 1s linear infinite; }
